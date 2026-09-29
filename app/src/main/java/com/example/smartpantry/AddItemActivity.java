@@ -19,6 +19,10 @@ public class AddItemActivity extends AppCompatActivity {
     private EditText etExpiryDate;
     private Button btnSaveItem;
 
+    // Used to determine whether we are adding or editing
+    private boolean isEditMode = false;
+    private int editItemIndex = -1;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -30,27 +34,105 @@ public class AddItemActivity extends AppCompatActivity {
         etExpiryDate = findViewById(R.id.etExpiryDate);
         btnSaveItem = findViewById(R.id.btnSaveItem);
 
-        etExpiryDate.setOnClickListener(v -> showDatePicker());
+        // Check if MainActivity opened this screen for editing
+        Intent intent = getIntent();
 
-        btnSaveItem.setOnClickListener(v -> saveItem());
+        if (intent.hasExtra("editItemIndex")) {
+
+            isEditMode = true;
+
+            editItemIndex =
+                    intent.getIntExtra(
+                            "editItemIndex",
+                            -1
+                    );
+
+            loadItemForEditing();
+        }
+
+        etExpiryDate.setOnClickListener(
+                v -> showDatePicker()
+        );
+
+        btnSaveItem.setOnClickListener(
+                v -> saveItem()
+        );
     }
+
+    // ============================================================
+    // LOAD ITEM FOR EDITING
+    // ============================================================
+
+    private void loadItemForEditing() {
+
+        if (editItemIndex < 0) {
+            return;
+        }
+
+        SharedPreferences preferences =
+                getSharedPreferences(
+                        "SmartPantry",
+                        MODE_PRIVATE
+                );
+
+        String itemName =
+                preferences.getString(
+                        "itemName_" + editItemIndex,
+                        ""
+                );
+
+        String quantity =
+                preferences.getString(
+                        "quantity_" + editItemIndex,
+                        ""
+                );
+
+        String expiryDate =
+                preferences.getString(
+                        "expiryDate_" + editItemIndex,
+                        ""
+                );
+
+        etItemName.setText(itemName);
+        etQuantity.setText(quantity);
+        etExpiryDate.setText(expiryDate);
+
+        // Change button text
+        btnSaveItem.setText("Save Changes");
+    }
+
+    // ============================================================
+    // DATE PICKER
+    // ============================================================
 
     private void showDatePicker() {
 
-        Calendar calendar = Calendar.getInstance();
+        Calendar calendar =
+                Calendar.getInstance();
 
-        int year = calendar.get(Calendar.YEAR);
-        int month = calendar.get(Calendar.MONTH);
-        int day = calendar.get(Calendar.DAY_OF_MONTH);
+        int year =
+                calendar.get(Calendar.YEAR);
+
+        int month =
+                calendar.get(Calendar.MONTH);
+
+        int day =
+                calendar.get(Calendar.DAY_OF_MONTH);
 
         DatePickerDialog datePickerDialog =
                 new DatePickerDialog(
                         this,
-                        (view, selectedYear, selectedMonth, selectedDay) -> {
+                        (view,
+                         selectedYear,
+                         selectedMonth,
+                         selectedDay) -> {
 
-                            String date = selectedDay + "/"
-                                    + (selectedMonth + 1) + "/"
-                                    + selectedYear;
+                            String date =
+                                    selectedDay
+                                            + "/"
+                                            + (selectedMonth + 1)
+                                            + "/"
+                                            + selectedYear;
 
                             etExpiryDate.setText(date);
                         },
@@ -62,54 +144,186 @@ public class AddItemActivity extends AppCompatActivity {
         datePickerDialog.show();
     }
 
+    // ============================================================
+    // SAVE OR UPDATE ITEM
+    // ============================================================
+
     private void saveItem() {
 
-        String itemName = etItemName.getText().toString().trim();
-        String quantity = etQuantity.getText().toString().trim();
-        String expiryDate = etExpiryDate.getText().toString().trim();
+        String itemName =
+                etItemName
+                        .getText()
+                        .toString()
+                        .trim();
 
+        String quantity =
+                etQuantity
+                        .getText()
+                        .toString()
+                        .trim();
+
+        String expiryDate =
+                etExpiryDate
+                        .getText()
+                        .toString()
+                        .trim();
+
+        // Validate item name
         if (itemName.isEmpty()) {
-            etItemName.setError("Enter an item name");
+
+            etItemName.setError(
+                    "Enter an item name"
+            );
+
             etItemName.requestFocus();
+
             return;
         }
 
+        // Validate quantity
         if (quantity.isEmpty()) {
-            etQuantity.setError("Enter quantity");
+
+            etQuantity.setError(
+                    "Enter quantity"
+            );
+
             etQuantity.requestFocus();
+
             return;
         }
 
+        // Validate expiry date
         if (expiryDate.isEmpty()) {
-            etExpiryDate.setError("Select expiry date");
+
+            etExpiryDate.setError(
+                    "Select expiry date"
+            );
+
             etExpiryDate.requestFocus();
+
             return;
         }
 
-        // Open pantry storage
         SharedPreferences preferences =
-                getSharedPreferences("SmartPantry", MODE_PRIVATE);
+                getSharedPreferences(
+                        "SmartPantry",
+                        MODE_PRIVATE
+                );
 
-        // Get current number of saved items
+        SharedPreferences.Editor editor =
+                preferences.edit();
+
+        // ========================================================
+        // EDIT EXISTING ITEM
+        // ========================================================
+
+        if (isEditMode && editItemIndex >= 0) {
+
+            editor.putString(
+                    "itemName_" + editItemIndex,
+                    itemName
+            );
+
+            editor.putString(
+                    "quantity_" + editItemIndex,
+                    quantity
+            );
+
+            editor.putString(
+                    "expiryDate_" + editItemIndex,
+                    expiryDate
+            );
+
+            editor.apply();
+
+            Intent resultIntent =
+                    new Intent();
+
+            resultIntent.putExtra(
+                    "itemName",
+                    itemName
+            );
+
+            resultIntent.putExtra(
+                    "quantity",
+                    quantity
+            );
+
+            resultIntent.putExtra(
+                    "expiryDate",
+                    expiryDate
+            );
+
+            setResult(
+                    RESULT_OK,
+                    resultIntent
+            );
+
+            Toast.makeText(
+                    this,
+                    "Item updated successfully!",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            finish();
+
+            return;
+        }
+
+        // ========================================================
+        // ADD NEW ITEM
+        // ========================================================
+
         int itemCount =
-                preferences.getInt("itemCount", 0);
+                preferences.getInt(
+                        "itemCount",
+                        0
+                );
 
-        // Save this item
-        preferences.edit()
-                .putString("itemName_" + itemCount, itemName)
-                .putString("quantity_" + itemCount, quantity)
-                .putString("expiryDate_" + itemCount, expiryDate)
-                .putInt("itemCount", itemCount + 1)
-                .apply();
+        editor.putString(
+                "itemName_" + itemCount,
+                itemName
+        );
 
-        // Also send the item back to MainActivity
-        Intent resultIntent = new Intent();
+        editor.putString(
+                "quantity_" + itemCount,
+                quantity
+        );
 
-        resultIntent.putExtra("itemName", itemName);
-        resultIntent.putExtra("quantity", quantity);
-        resultIntent.putExtra("expiryDate", expiryDate);
+        editor.putString(
+                "expiryDate_" + itemCount,
+                expiryDate
+        );
 
-        setResult(RESULT_OK, resultIntent);
+        editor.putInt(
+                "itemCount",
+                itemCount + 1
+        );
+
+        editor.apply();
+
+        Intent resultIntent =
+                new Intent();
+
+        resultIntent.putExtra(
+                "itemName",
+                itemName
+        );
+
+        resultIntent.putExtra(
+                "quantity",
+                quantity
+        );
+
+        resultIntent.putExtra(
+                "expiryDate",
+                expiryDate
+        );
+
+        setResult(
+                RESULT_OK,
+                resultIntent
+        );
 
         Toast.makeText(
                 this,

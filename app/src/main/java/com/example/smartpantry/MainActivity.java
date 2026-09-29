@@ -35,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private int expiringCount = 0;
 
     private static final int ADD_ITEM_REQUEST = 100;
+    private static final int EDIT_ITEM_REQUEST = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,7 +61,6 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Connect XML views
         tvItems = findViewById(R.id.tvItems);
         tvExpiring = findViewById(R.id.tvExpiring);
         tvEmptyPantry = findViewById(R.id.tvEmptyPantry);
@@ -72,12 +72,18 @@ public class MainActivity extends AppCompatActivity {
         btnAddItem.setOnClickListener(v -> {
 
             Intent intent =
-                    new Intent(MainActivity.this, AddItemActivity.class);
+                    new Intent(
+                            MainActivity.this,
+                            AddItemActivity.class
+                    );
 
-            startActivityForResult(intent, ADD_ITEM_REQUEST);
+            startActivityForResult(
+                    intent,
+                    ADD_ITEM_REQUEST
+            );
         });
 
-        // Search pantry
+        // Search
         searchBar.addTextChangedListener(new TextWatcher() {
 
             @Override
@@ -103,7 +109,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Load saved pantry items
         loadSavedItems();
     }
 
@@ -128,7 +133,8 @@ public class MainActivity extends AppCompatActivity {
                 data
         );
 
-        if (requestCode == ADD_ITEM_REQUEST
+        if ((requestCode == ADD_ITEM_REQUEST
+                || requestCode == EDIT_ITEM_REQUEST)
                 && resultCode == RESULT_OK) {
 
             loadSavedItems();
@@ -271,37 +277,109 @@ public class MainActivity extends AppCompatActivity {
 
         itemView.setLayoutParams(params);
 
-        // Tap item to delete
+        // Tap item
         itemView.setOnClickListener(v -> {
 
-            new AlertDialog.Builder(this)
-
-                    .setTitle("Delete Item")
-
-                    .setMessage(
-                            "Do you want to delete "
-                                    + itemName
-                                    + "?"
-                    )
-
-                    .setNegativeButton(
-                            "Cancel",
-                            null
-                    )
-
-                    .setPositiveButton(
-                            "Delete",
-                            (dialog, which) -> {
-
-                                deleteItem(itemIndex);
-
-                            }
-                    )
-
-                    .show();
+            showItemOptions(
+                    itemName,
+                    itemIndex
+            );
         });
 
         pantryList.addView(itemView);
+    }
+
+    // ============================================================
+    // EDIT / DELETE MENU
+    // ============================================================
+
+    private void showItemOptions(
+            String itemName,
+            int itemIndex) {
+
+        String[] options = {
+                "Edit Item",
+                "Delete Item",
+                "Cancel"
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle(itemName)
+                .setItems(
+                        options,
+                        (dialog, which) -> {
+
+                            if (which == 0) {
+
+                                editItem(itemIndex);
+
+                            } else if (which == 1) {
+
+                                confirmDelete(
+                                        itemName,
+                                        itemIndex
+                                );
+                            }
+                        }
+                )
+                .show();
+    }
+
+    // ============================================================
+    // OPEN EDIT SCREEN
+    // ============================================================
+
+    private void editItem(int itemIndex) {
+
+        Intent intent =
+                new Intent(
+                        MainActivity.this,
+                        AddItemActivity.class
+                );
+
+        intent.putExtra(
+                "editItemIndex",
+                itemIndex
+        );
+
+        startActivityForResult(
+                intent,
+                EDIT_ITEM_REQUEST
+        );
+    }
+
+    // ============================================================
+    // CONFIRM DELETE
+    // ============================================================
+
+    private void confirmDelete(
+            String itemName,
+            int itemIndex) {
+
+        new AlertDialog.Builder(this)
+
+                .setTitle("Delete Item")
+
+                .setMessage(
+                        "Do you want to delete "
+                                + itemName
+                                + "?"
+                )
+
+                .setNegativeButton(
+                        "Cancel",
+                        null
+                )
+
+                .setPositiveButton(
+                        "Delete",
+                        (dialog, which) -> {
+
+                            deleteItem(itemIndex);
+                        }
+                )
+
+                .show();
     }
 
     // ============================================================
@@ -368,7 +446,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // No pantry items
         if (savedItemCount == 0) {
 
             tvEmptyPantry.setText(
@@ -380,10 +457,7 @@ public class MainActivity extends AppCompatActivity {
                     View.VISIBLE
             );
 
-        }
-
-        // Search returned nothing
-        else if (matchingItems == 0) {
+        } else if (matchingItems == 0) {
 
             tvEmptyPantry.setText(
                     "No pantry items found."
@@ -393,10 +467,7 @@ public class MainActivity extends AppCompatActivity {
                     View.VISIBLE
             );
 
-        }
-
-        // Items found
-        else {
+        } else {
 
             tvEmptyPantry.setVisibility(
                     View.GONE
@@ -429,7 +500,7 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences.Editor editor =
                 preferences.edit();
 
-        // Move all following items up
+        // Move items after deleted item up
         for (
                 int i = itemIndex;
                 i < itemCount - 1;
@@ -470,7 +541,7 @@ public class MainActivity extends AppCompatActivity {
             );
         }
 
-        // Remove final duplicate entry
+        // Remove final duplicate
         editor.remove(
                 "itemName_" + (itemCount - 1)
         );
@@ -500,7 +571,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ============================================================
-    // UPDATE PANTRY COUNTER
+    // UPDATE PANTRY DISPLAY
     // ============================================================
 
     private void updatePantryDisplay() {
