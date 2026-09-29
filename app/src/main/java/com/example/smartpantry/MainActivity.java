@@ -22,6 +22,12 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+
 public class MainActivity extends AppCompatActivity {
 
     private TextView tvItems;
@@ -49,7 +55,9 @@ public class MainActivity extends AppCompatActivity {
         ViewCompat.setOnApplyWindowInsetsListener(mainView, (v, insets) -> {
 
             Insets systemBars =
-                    insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                    insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                    );
 
             v.setPadding(
                     systemBars.left,
@@ -68,7 +76,10 @@ public class MainActivity extends AppCompatActivity {
         btnAddItem = findViewById(R.id.btnAddItem);
         searchBar = findViewById(R.id.searchBar);
 
-        // Add Item button
+        // ========================================================
+        // ADD ITEM BUTTON
+        // ========================================================
+
         btnAddItem.setOnClickListener(v -> {
 
             Intent intent =
@@ -83,43 +94,60 @@ public class MainActivity extends AppCompatActivity {
             );
         });
 
-        // Search
-        searchBar.addTextChangedListener(new TextWatcher() {
+        // ========================================================
+        // SEARCH
+        // ========================================================
 
-            @Override
-            public void beforeTextChanged(
-                    CharSequence s,
-                    int start,
-                    int count,
-                    int after) {
-            }
+        searchBar.addTextChangedListener(
+                new TextWatcher() {
 
-            @Override
-            public void onTextChanged(
-                    CharSequence s,
-                    int start,
-                    int before,
-                    int count) {
+                    @Override
+                    public void beforeTextChanged(
+                            CharSequence s,
+                            int start,
+                            int count,
+                            int after) {
+                    }
 
-                filterPantryItems(s.toString());
-            }
+                    @Override
+                    public void onTextChanged(
+                            CharSequence s,
+                            int start,
+                            int before,
+                            int count) {
 
-            @Override
-            public void afterTextChanged(Editable s) {
-            }
-        });
+                        filterPantryItems(
+                                s.toString()
+                        );
+                    }
+
+                    @Override
+                    public void afterTextChanged(
+                            Editable s) {
+                    }
+                }
+        );
 
         loadSavedItems();
     }
 
+    // ============================================================
+    // RESUME
+    // ============================================================
+
     @Override
     protected void onResume() {
+
         super.onResume();
 
         if (pantryList != null) {
             loadSavedItems();
         }
     }
+
+    // ============================================================
+    // ACTIVITY RESULT
+    // ============================================================
 
     @Override
     protected void onActivityResult(
@@ -194,6 +222,11 @@ public class MainActivity extends AppCompatActivity {
                 );
 
                 pantryCount++;
+
+                // Check expiry
+                if (isExpiringSoon(expiryDate)) {
+                    expiringCount++;
+                }
             }
         }
 
@@ -449,8 +482,8 @@ public class MainActivity extends AppCompatActivity {
         if (savedItemCount == 0) {
 
             tvEmptyPantry.setText(
-                    "Your pantry is empty.\n" +
-                            "Tap '+ Add Item' to get started."
+                    "Your pantry is empty.\n"
+                            + "Tap '+ Add Item' to get started."
             );
 
             tvEmptyPantry.setVisibility(
@@ -571,6 +604,72 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ============================================================
+    // CHECK IF ITEM IS EXPIRING SOON
+    // ============================================================
+
+    private boolean isExpiringSoon(
+            String expiryDate) {
+
+        try {
+
+            SimpleDateFormat dateFormat =
+                    new SimpleDateFormat(
+                            "d/M/yyyy",
+                            Locale.getDefault()
+                    );
+
+            dateFormat.setLenient(false);
+
+            Date expiry =
+                    dateFormat.parse(expiryDate);
+
+            Calendar today =
+                    Calendar.getInstance();
+
+            // Remove time from today's date
+            today.set(
+                    Calendar.HOUR_OF_DAY,
+                    0
+            );
+
+            today.set(
+                    Calendar.MINUTE,
+                    0
+            );
+
+            today.set(
+                    Calendar.SECOND,
+                    0
+            );
+
+            today.set(
+                    Calendar.MILLISECOND,
+                    0
+            );
+
+            Calendar sevenDaysFromNow =
+                    (Calendar) today.clone();
+
+            sevenDaysFromNow.add(
+                    Calendar.DAY_OF_MONTH,
+                    7
+            );
+
+            return expiry != null
+                    && !expiry.before(
+                    today.getTime()
+            )
+                    && !expiry.after(
+                    sevenDaysFromNow.getTime()
+            );
+
+        } catch (ParseException e) {
+
+            return false;
+        }
+    }
+
+    // ============================================================
     // UPDATE PANTRY DISPLAY
     // ============================================================
 
@@ -591,8 +690,8 @@ public class MainActivity extends AppCompatActivity {
         if (pantryCount == 0) {
 
             tvEmptyPantry.setText(
-                    "Your pantry is empty.\n" +
-                            "Tap '+ Add Item' to get started."
+                    "Your pantry is empty.\n"
+                            + "Tap '+ Add Item' to get started."
             );
 
             tvEmptyPantry.setVisibility(
