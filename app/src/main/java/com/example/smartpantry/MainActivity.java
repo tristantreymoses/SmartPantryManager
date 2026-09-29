@@ -5,14 +5,18 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -25,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvEmptyPantry;
     private LinearLayout pantryList;
     private Button btnAddItem;
+    private EditText searchBar;
 
     private int pantryCount = 0;
     private int expiringCount = 0;
@@ -55,12 +60,15 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
+        // Connect XML views
         tvItems = findViewById(R.id.tvItems);
         tvExpiring = findViewById(R.id.tvExpiring);
         tvEmptyPantry = findViewById(R.id.tvEmptyPantry);
         pantryList = findViewById(R.id.pantryList);
         btnAddItem = findViewById(R.id.btnAddItem);
+        searchBar = findViewById(R.id.searchBar);
 
+        // Add Item button
         btnAddItem.setOnClickListener(v -> {
 
             Intent intent =
@@ -69,7 +77,43 @@ public class MainActivity extends AppCompatActivity {
             startActivityForResult(intent, ADD_ITEM_REQUEST);
         });
 
+        // Search pantry
+        searchBar.addTextChangedListener(new TextWatcher() {
+
+            @Override
+            public void beforeTextChanged(
+                    CharSequence s,
+                    int start,
+                    int count,
+                    int after) {
+            }
+
+            @Override
+            public void onTextChanged(
+                    CharSequence s,
+                    int start,
+                    int before,
+                    int count) {
+
+                filterPantryItems(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+
+        // Load saved pantry items
         loadSavedItems();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (pantryList != null) {
+            loadSavedItems();
+        }
     }
 
     @Override
@@ -78,25 +122,39 @@ public class MainActivity extends AppCompatActivity {
             int resultCode,
             Intent data) {
 
-        super.onActivityResult(requestCode, resultCode, data);
+        super.onActivityResult(
+                requestCode,
+                resultCode,
+                data
+        );
 
         if (requestCode == ADD_ITEM_REQUEST
-                && resultCode == RESULT_OK
-                && data != null) {
+                && resultCode == RESULT_OK) {
 
             loadSavedItems();
         }
     }
 
+    // ============================================================
+    // LOAD SAVED ITEMS
+    // ============================================================
+
     private void loadSavedItems() {
 
         SharedPreferences preferences =
-                getSharedPreferences("SmartPantry", MODE_PRIVATE);
+                getSharedPreferences(
+                        "SmartPantry",
+                        MODE_PRIVATE
+                );
 
         int savedItemCount =
-                preferences.getInt("itemCount", 0);
+                preferences.getInt(
+                        "itemCount",
+                        0
+                );
 
         pantryCount = 0;
+        expiringCount = 0;
 
         pantryList.removeAllViews();
 
@@ -136,13 +194,18 @@ public class MainActivity extends AppCompatActivity {
         updatePantryDisplay();
     }
 
+    // ============================================================
+    // DISPLAY PANTRY ITEM
+    // ============================================================
+
     private void addItemView(
             String itemName,
             String quantity,
             String expiryDate,
             int itemIndex) {
 
-        TextView itemView = new TextView(this);
+        TextView itemView =
+                new TextView(this);
 
         itemView.setLayoutParams(
                 new LinearLayout.LayoutParams(
@@ -151,7 +214,9 @@ public class MainActivity extends AppCompatActivity {
                 )
         );
 
-        itemView.setGravity(Gravity.CENTER_VERTICAL);
+        itemView.setGravity(
+                Gravity.CENTER_VERTICAL
+        );
 
         itemView.setPadding(
                 dpToPx(18),
@@ -178,7 +243,9 @@ public class MainActivity extends AppCompatActivity {
         GradientDrawable background =
                 new GradientDrawable();
 
-        background.setColor(Color.WHITE);
+        background.setColor(
+                Color.WHITE
+        );
 
         background.setCornerRadius(
                 dpToPx(18)
@@ -204,20 +271,24 @@ public class MainActivity extends AppCompatActivity {
 
         itemView.setLayoutParams(params);
 
-        // Tap an item to delete it
+        // Tap item to delete
         itemView.setOnClickListener(v -> {
 
-            new androidx.appcompat.app.AlertDialog.Builder(this)
+            new AlertDialog.Builder(this)
+
                     .setTitle("Delete Item")
+
                     .setMessage(
                             "Do you want to delete "
                                     + itemName
                                     + "?"
                     )
+
                     .setNegativeButton(
                             "Cancel",
                             null
                     )
+
                     .setPositiveButton(
                             "Delete",
                             (dialog, which) -> {
@@ -226,11 +297,116 @@ public class MainActivity extends AppCompatActivity {
 
                             }
                     )
+
                     .show();
         });
 
         pantryList.addView(itemView);
     }
+
+    // ============================================================
+    // SEARCH
+    // ============================================================
+
+    private void filterPantryItems(
+            String searchText) {
+
+        SharedPreferences preferences =
+                getSharedPreferences(
+                        "SmartPantry",
+                        MODE_PRIVATE
+                );
+
+        int savedItemCount =
+                preferences.getInt(
+                        "itemCount",
+                        0
+                );
+
+        pantryList.removeAllViews();
+
+        int matchingItems = 0;
+
+        searchText =
+                searchText
+                        .toLowerCase()
+                        .trim();
+
+        for (int i = 0; i < savedItemCount; i++) {
+
+            String itemName =
+                    preferences.getString(
+                            "itemName_" + i,
+                            ""
+                    );
+
+            String quantity =
+                    preferences.getString(
+                            "quantity_" + i,
+                            ""
+                    );
+
+            String expiryDate =
+                    preferences.getString(
+                            "expiryDate_" + i,
+                            ""
+                    );
+
+            if (!itemName.isEmpty()
+                    && itemName
+                    .toLowerCase()
+                    .contains(searchText)) {
+
+                addItemView(
+                        itemName,
+                        quantity,
+                        expiryDate,
+                        i
+                );
+
+                matchingItems++;
+            }
+        }
+
+        // No pantry items
+        if (savedItemCount == 0) {
+
+            tvEmptyPantry.setText(
+                    "Your pantry is empty.\n" +
+                            "Tap '+ Add Item' to get started."
+            );
+
+            tvEmptyPantry.setVisibility(
+                    View.VISIBLE
+            );
+
+        }
+
+        // Search returned nothing
+        else if (matchingItems == 0) {
+
+            tvEmptyPantry.setText(
+                    "No pantry items found."
+            );
+
+            tvEmptyPantry.setVisibility(
+                    View.VISIBLE
+            );
+
+        }
+
+        // Items found
+        else {
+
+            tvEmptyPantry.setVisibility(
+                    View.GONE
+            );
+        }
+    }
+
+    // ============================================================
+    // DELETE ITEM
+    // ============================================================
 
     private void deleteItem(int itemIndex) {
 
@@ -246,11 +422,19 @@ public class MainActivity extends AppCompatActivity {
                         0
                 );
 
+        if (itemCount <= 0) {
+            return;
+        }
+
         SharedPreferences.Editor editor =
                 preferences.edit();
 
-        // Move items after the deleted item up
-        for (int i = itemIndex; i < itemCount - 1; i++) {
+        // Move all following items up
+        for (
+                int i = itemIndex;
+                i < itemCount - 1;
+                i++
+        ) {
 
             String nextName =
                     preferences.getString(
@@ -286,7 +470,7 @@ public class MainActivity extends AppCompatActivity {
             );
         }
 
-        // Remove the last duplicate entry
+        // Remove final duplicate entry
         editor.remove(
                 "itemName_" + (itemCount - 1)
         );
@@ -312,9 +496,12 @@ public class MainActivity extends AppCompatActivity {
                 Toast.LENGTH_SHORT
         ).show();
 
-        // Refresh the pantry
         loadSavedItems();
     }
+
+    // ============================================================
+    // UPDATE PANTRY COUNTER
+    // ============================================================
 
     private void updatePantryDisplay() {
 
@@ -332,13 +519,26 @@ public class MainActivity extends AppCompatActivity {
 
         if (pantryCount == 0) {
 
-            tvEmptyPantry.setVisibility(View.VISIBLE);
+            tvEmptyPantry.setText(
+                    "Your pantry is empty.\n" +
+                            "Tap '+ Add Item' to get started."
+            );
+
+            tvEmptyPantry.setVisibility(
+                    View.VISIBLE
+            );
 
         } else {
 
-            tvEmptyPantry.setVisibility(View.GONE);
+            tvEmptyPantry.setVisibility(
+                    View.GONE
+            );
         }
     }
+
+    // ============================================================
+    // DP TO PX
+    // ============================================================
 
     private int dpToPx(int dp) {
 
@@ -347,6 +547,8 @@ public class MainActivity extends AppCompatActivity {
                         .getDisplayMetrics()
                         .density;
 
-        return Math.round(dp * density);
+        return Math.round(
+                dp * density
+        );
     }
 }
